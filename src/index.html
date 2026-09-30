@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Team Operations Hub | Enterprise Desktop</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+  <!-- Socket.io client -->
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body class="theme-dark">
+  <div class="app-container">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-logo">
+          <i class="fa-solid fa-shapes"></i>
+        </div>
+        <div class="brand-info">
+          <h2>Team Hub</h2>
+          <span class="subtext">Enterprise Desktop v1.0</span>
+        </div>
+      </div>
+
+      <nav class="nav-menu">
+        <button class="nav-item active" data-tab="dashboard">
+          <i class="fa-solid fa-gauge-high"></i>
+          <span>Dashboard</span>
+        </button>
+        <button class="nav-item" data-tab="reports">
+          <i class="fa-solid fa-chart-pie"></i>
+          <span>Report Studio</span>
+        </button>
+        <button class="nav-item" data-tab="notifications">
+          <i class="fa-solid fa-bell"></i>
+          <span>Team Alerts</span>
+          <span class="badge" id="navNotifBadge">0</span>
+        </button>
+        <button class="nav-item" data-tab="sharepoint">
+          <i class="fa-brands fa-microsoft"></i>
+          <span>SharePoint Hub</span>
+        </button>
+        <button class="nav-item" data-tab="settings">
+          <i class="fa-solid fa-sliders"></i>
+          <span>Config & SSO</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="sp-sync-indicator" id="spStatusIndicator">
+          <span class="pulse-dot"></span>
+          <div class="sp-sync-info">
+            <span class="sp-title">Line Manager SharePoint</span>
+            <span class="sp-folder" id="spSidebarFolder">Connected</span>
+          </div>
+        </div>
+        <div class="user-card" id="sidebarUserCard">
+          <img src="" alt="Avatar" id="userAvatar" class="avatar">
+          <div class="user-details">
+            <h4 id="userName">Loading...</h4>
+            <span id="userRole" class="role-badge">Member</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+      <!-- TOPBAR -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <h1 id="pageTitle">Operations Dashboard</h1>
+          <span class="breadcrumb" id="pageSubtitle">Real-time team time booking, approvals & SharePoint sync</span>
+        </div>
+
+        <div class="topbar-right">
+          <!-- Persona quick switcher for testing -->
+          <div class="persona-switch">
+            <span class="label"><i class="fa-solid fa-user-gear"></i> Persona:</span>
+            <select id="personaSelector" class="form-select">
+              <option value="user_001">Sarah Jenkins (Line Manager)</option>
+              <option value="user_002" selected>Alex Rivera (Team Member)</option>
+              <option value="user_003">Priya Patel (Team Member)</option>
+              <option value="user_004">Marcus Vance (Team Member)</option>
+            </select>
+          </div>
+
+          <!-- Quick Action Buttons -->
+          <button class="btn btn-outline" id="btnNudgeModal">
+            <i class="fa-solid fa-bullhorn"></i> Send Nudge
+          </button>
+          <button class="btn btn-primary" id="btnBookTimeModal">
+            <i class="fa-solid fa-plus"></i> Book Time
+          </button>
+
+          <!-- Notification Bell -->
+          <div class="notif-bell-wrapper" id="topbarBell">
+            <button class="icon-btn" title="View Notifications">
+              <i class="fa-regular fa-bell"></i>
+              <span class="bell-badge" id="bellCounter">0</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <!-- TAB CONTENTS -->
+      <div class="content-scroll">
+        <!-- 1. DASHBOARD TAB -->
+        <section id="tab-dashboard" class="tab-pane active">
+          <!-- KPI Stat Cards -->
+          <div class="kpi-grid">
+            <div class="kpi-card">
+              <div class="kpi-icon icon-blue"><i class="fa-solid fa-clock"></i></div>
+              <div class="kpi-content">
+                <span class="kpi-label">Weekly Hours Logged</span>
+                <h3 class="kpi-value" id="kpiWeeklyHours">0.0 hrs</h3>
+                <span class="kpi-trend positive" id="kpiTargetRate">Target: 40 hrs/wk</span>
+              </div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-icon icon-emerald"><i class="fa-solid fa-circle-check"></i></div>
+              <div class="kpi-content">
+                <span class="kpi-label">Team Compliance Rate</span>
+                <h3 class="kpi-value" id="kpiComplianceRate">0%</h3>
+                <span class="kpi-trend" id="kpiComplianceSub">4 of 5 Submitted</span>
+              </div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-icon icon-amber"><i class="fa-solid fa-hourglass-half"></i></div>
+              <div class="kpi-content">
+                <span class="kpi-label">Pending Manager Approvals</span>
+                <h3 class="kpi-value" id="kpiPendingCount">0</h3>
+                <span class="kpi-trend warning">Action required</span>
+              </div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-icon icon-purple"><i class="fa-brands fa-microsoft"></i></div>
+              <div class="kpi-content">
+                <span class="kpi-label">SharePoint Archive</span>
+                <h3 class="kpi-value" id="kpiSpCount">0 Reports</h3>
+                <span class="kpi-trend">Line Manager Library</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Manager Team Board (Visible to Line Manager) -->
+          <div class="card" id="managerTeamBoardCard">
+            <div class="card-header">
+              <div>
+                <h3><i class="fa-solid fa-users-viewfinder"></i> Team Status Board (Line Manager View)</h3>
+                <p class="card-subtitle">Real-time status of members reporting to this Line Manager</p>
+              </div>
+              <button class="btn btn-sm btn-outline" id="btnNudgeAllMissing">
+                <i class="fa-solid fa-paper-plane"></i> Nudge All Missing
+              </button>
+            </div>
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Team Member</th>
+                    <th>Role / Title</th>
+                    <th>Today's Booking</th>
+                    <th>Sprint Hours</th>
+                    <th>Timesheet Status</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="teamStatusTableBody">
+                  <!-- Injected via dashboard.js -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Recent Bookings Table -->
+          <div class="card mt-4">
+            <div class="card-header">
+              <div>
+                <h3><i class="fa-solid fa-list-check"></i> Recent Time Booking Activity</h3>
+                <p class="card-subtitle">Latest entries submitted by team members</p>
+              </div>
+              <button class="btn btn-sm btn-outline" id="btnRefreshBookings">
+                <i class="fa-solid fa-rotate"></i> Refresh
+              </button>
+            </div>
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Member</th>
+                    <th>Project</th>
+                    <th>Task & Notes</th>
+                    <th>Hours</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="recentBookingsTableBody">
+                  <!-- Injected via dashboard.js -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. REPORT STUDIO TAB -->
+        <section id="tab-reports" class="tab-pane">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <h3><i class="fa-solid fa-wand-magic-sparkles"></i> Report Studio</h3>
+                <p class="card-subtitle">Generate customized reports, export to Excel or push directly to the Line Manager's SharePoint</p>
+              </div>
+              <div class="header-actions">
+                <button class="btn btn-outline" id="btnExportExcel">
+                  <i class="fa-solid fa-file-excel"></i> Export Excel (.xlsx)
+                </button>
+                <button class="btn btn-primary" id="btnUploadToSharePoint">
+                  <i class="fa-brands fa-microsoft"></i> Save to Line Manager SharePoint
+                </button>
+              </div>
+            </div>
+
+            <!-- Report Filters -->
+            <div class="report-filter-bar">
+              <div class="filter-group">
+                <label>Date Range</label>
+                <div class="date-inputs">
+                  <input type="date" id="filterStartDate" class="form-input">
+                  <span>to</span>
+                  <input type="date" id="filterEndDate" class="form-input">
+                </div>
+              </div>
+
+              <div class="filter-group">
+                <label>Team Member</label>
+                <select id="filterMember" class="form-select">
+                  <option value="all">All Team Members</option>
+                </select>
+              </div>
+
+              <div class="filter-group">
+                <label>Project</label>
+                <select id="filterProject" class="form-select">
+                  <option value="all">All Projects</option>
+                  <option value="PRJ-801 Core Migration">PRJ-801 Core Migration</option>
+                  <option value="PRJ-802 RPA Workflows">PRJ-802 RPA Workflows</option>
+                  <option value="PRJ-803 Security Audit">PRJ-803 Security Audit</option>
+                  <option value="PRJ-804 Platform Reliability">PRJ-804 Platform Reliability</option>
+                </select>
+              </div>
+
+              <div class="filter-actions">
+                <button class="btn btn-primary" id="btnGenerateReport">
+                  <i class="fa-solid fa-filter"></i> Generate
+                </button>
+              </div>
+            </div>
+
+            <!-- Report Summary Cards -->
+            <div class="report-stats-grid" id="reportStatsContainer">
+              <div class="mini-stat">
+                <span class="label">Total Hours in Period</span>
+                <h4 id="reportTotalHours">0.0 hrs</h4>
+              </div>
+              <div class="mini-stat">
+                <span class="label">Logged Entries</span>
+                <h4 id="reportEntryCount">0 records</h4>
+              </div>
+              <div class="mini-stat">
+                <span class="label">Configured SharePoint Target</span>
+                <h4 id="reportSpTargetFolder">TeamReports/WeeklyTimesheets</h4>
+              </div>
+            </div>
+
+            <!-- Report Table Preview -->
+            <div class="table-responsive mt-3">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Member</th>
+                    <th>Project</th>
+                    <th>Task Description</th>
+                    <th>Hours</th>
+                    <th>Status</th>
+                    <th>Notes</th>
+                  </tr>
+                </thead>
+                <tbody id="reportResultsTableBody">
+                  <!-- Injected via report-studio.js -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3. TEAM NOTIFICATIONS TAB -->
+        <section id="tab-notifications" class="tab-pane">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <h3><i class="fa-solid fa-bell-concierge"></i> Team Push & Notification Center</h3>
+                <p class="card-subtitle">Real-time alerts, manager booking nudges, and system deadline reminders</p>
+              </div>
+              <button class="btn btn-sm btn-outline" id="btnTestNativePush">
+                <i class="fa-solid fa-desktop"></i> Test Windows Desktop Push
+              </button>
+            </div>
+
+            <div class="notif-feed-container">
+              <div class="notif-list" id="notificationList">
+                <!-- Injected via notifications.js -->
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 4. SHAREPOINT HUB TAB -->
+        <section id="tab-sharepoint" class="tab-pane">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <h3><i class="fa-brands fa-microsoft"></i> Line Manager Team SharePoint Library</h3>
+                <p class="card-subtitle">Reports and documents synced directly to this Line Manager's team site</p>
+              </div>
+              <button class="btn btn-sm btn-primary" id="btnRefreshSpFiles">
+                <i class="fa-solid fa-rotate"></i> Sync Files
+              </button>
+            </div>
+
+            <div class="sp-meta-banner">
+              <div class="sp-meta-item">
+                <span class="meta-label">Line Manager:</span>
+                <strong id="spManagerName">Sarah Jenkins</strong>
+              </div>
+              <div class="sp-meta-item">
+                <span class="meta-label">SharePoint Site:</span>
+                <span id="spSiteUrlText">https://company.sharepoint.com/sites/Global-Operations</span>
+              </div>
+              <div class="sp-meta-item">
+                <span class="meta-label">Target Folder:</span>
+                <code id="spTargetFolderText">TeamReports/WeeklyTimesheets</code>
+              </div>
+            </div>
+
+            <div class="table-responsive mt-3">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Report File Name</th>
+                    <th>Size</th>
+                    <th>Uploaded Date</th>
+                    <th>SharePoint Destination</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="sharepointFilesTableBody">
+                  <!-- Injected dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- 5. CONFIG & SSO TAB -->
+        <section id="tab-settings" class="tab-pane">
+          <div class="grid-2-col">
+            <!-- SSO & Tenant Configuration -->
+            <div class="card">
+              <div class="card-header">
+                <h3><i class="fa-solid fa-key"></i> Single Sign-On (SSO) Setup</h3>
+              </div>
+              <div class="card-body">
+                <div class="form-group">
+                  <label>Authentication Mode</label>
+                  <select id="cfgAuthMode" class="form-select">
+                    <option value="mock">Local / Mock SSO Mode (Test without Azure AD credentials)</option>
+                    <option value="azure-sso">Live Microsoft Entra ID (Azure AD SSO)</option>
+                  </select>
+                  <small class="helper-text">Keep in "Local/Mock Mode" to test on any machine. Switch to "Azure AD SSO" on your company laptop.</small>
+                </div>
+
+                <div class="form-group">
+                  <label>Azure AD Tenant ID</label>
+                  <input type="text" id="cfgTenantId" class="form-input" placeholder="e.g. 72f988bf-86f1-41af-91ab-2d7cd011db47">
+                </div>
+
+                <div class="form-group">
+                  <label>Application (Client) ID</label>
+                  <input type="text" id="cfgClientId" class="form-input" placeholder="e.g. 11111111-2222-3333-4444-555555555555">
+                </div>
+
+                <div class="form-group">
+                  <label>Redirect URI (Loopback)</label>
+                  <input type="text" id="cfgRedirectUri" class="form-input" value="http://localhost:49152/auth/callback" readonly>
+                </div>
+
+                <button class="btn btn-outline" id="btnTestSsoLogin">
+                  <i class="fa-brands fa-microsoft"></i> Launch Microsoft SSO Sign-in
+                </button>
+              </div>
+            </div>
+
+            <!-- Line Manager SharePoint Setup -->
+            <div class="card">
+              <div class="card-header">
+                <h3><i class="fa-solid fa-folder-tree"></i> Line Manager SharePoint Config</h3>
+              </div>
+              <div class="card-body">
+                <div class="form-group">
+                  <label>Line Manager Email</label>
+                  <input type="email" id="cfgManagerEmail" class="form-input" placeholder="manager.ops@company.com">
+                </div>
+
+                <div class="form-group">
+                  <label>Team SharePoint Site URL</label>
+                  <input type="url" id="cfgSiteUrl" class="form-input" placeholder="https://company.sharepoint.com/sites/Team-Operations">
+                </div>
+
+                <div class="form-group">
+                  <label>Document Library Folder</label>
+                  <input type="text" id="cfgDocFolder" class="form-input" placeholder="TeamReports/WeeklyTimesheets">
+                </div>
+
+                <div class="form-group">
+                  <label class="checkbox-label">
+                    <input type="checkbox" id="cfgDesktopPush" checked>
+                    <span>Enable Windows Action Center Desktop Notifications</span>
+                  </label>
+                </div>
+
+                <div class="form-actions mt-3">
+                  <button class="btn btn-primary" id="btnSaveSettings">
+                    <i class="fa-solid fa-floppy-disk"></i> Save Configuration
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <!-- MODAL: BOOK TIME -->
+  <div class="modal-backdrop" id="modalBookTime">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-clock"></i> Book Project Time</h3>
+        <button class="modal-close" id="btnCloseBookTime">&times;</button>
+      </div>
+      <form id="formBookTime">
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Project</label>
+            <select id="bookProject" class="form-select" required>
+              <option value="PRJ-801 Core Migration">PRJ-801 Core Migration</option>
+              <option value="PRJ-802 RPA Workflows">PRJ-802 RPA Workflows</option>
+              <option value="PRJ-803 Security Audit">PRJ-803 Security Audit</option>
+              <option value="PRJ-804 Platform Reliability">PRJ-804 Platform Reliability</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Date</label>
+            <input type="date" id="bookDate" class="form-input" required>
+          </div>
+          <div class="form-group">
+            <label>Hours Logged</label>
+            <input type="number" id="bookHours" class="form-input" min="0.5" max="24" step="0.5" value="8" required>
+          </div>
+          <div class="form-group">
+            <label>Task Description / Work Detail</label>
+            <input type="text" id="bookTask" class="form-input" placeholder="e.g. Cluster migration and sanity checks" required>
+          </div>
+          <div class="form-group">
+            <label>Additional Notes (Optional)</label>
+            <textarea id="bookNotes" class="form-textarea" rows="2" placeholder="Brief notes for Line Manager review..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" id="btnCancelBookTime">Cancel</button>
+          <button type="submit" class="btn btn-primary">Submit for Approval</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: LINE MANAGER NUDGE -->
+  <div class="modal-backdrop" id="modalNudge">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-bullhorn"></i> Send Team Push Notification</h3>
+        <button class="modal-close" id="btnCloseNudge">&times;</button>
+      </div>
+      <form id="formNudge">
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Target Audience</label>
+            <select id="nudgeTarget" class="form-select">
+              <option value="all">Entire Team Under Line Manager</option>
+              <!-- Populated dynamically -->
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Notification Title</label>
+            <input type="text" id="nudgeTitle" class="form-input" value="Time Booking Reminder" required>
+          </div>
+          <div class="form-group">
+            <label>Message Content</label>
+            <textarea id="nudgeMessage" class="form-textarea" rows="3" required>Kindly log and submit your project hours for today before 5:00 PM.</textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" id="btnCancelNudge">Cancel</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="fa-solid fa-paper-plane"></i> Broadcast Notification
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- SCRIPTS -->
+  <script src="js/dashboard.js"></script>
+  <script src="js/report-studio.js"></script>
+  <script src="js/notifications.js"></script>
+  <script src="js/settings.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
